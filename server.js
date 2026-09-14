@@ -13,12 +13,14 @@ let mem={};
 const json=(res,status,obj)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(obj));};
 async function init(){if(pool)await pool.query('create table if not exists qa_state(key text primary key,value jsonb not null)');}
 async function get(key,def=null){if(!pool)return key in mem?mem[key]:def;const r=await pool.query('select value from qa_state where key=$1',[key]);return r.rows[0]?.value??def;}
+async function set(key,value){if(!pool){mem[key]=value;return;}await pool.query('insert into qa_state(key,value) values($1,$2::jsonb) on conflict(key) do update set value=excluded.value',[key,JSON.stringify(value)]);}
+async function readBody(req,limit=8000000){return await new Promise((resolve,reject)=>{let n=0,s='';req.on('data',c=>{n+=c.length;if(n>limit){reject(new Error('payload too large'));req.destroy();return;}s+=c});req.on('end',()=>{try{resolve(s?JSON.parse(s):{})}catch(e){reject(e)}});req.on('error',reject)});}
 const yearOf=u=>Number(u.searchParams.get('year'))||2026;
 const rowsKey=(name,y)=>`${name}:${y}`;
 await init();
 
 async function sendLocal(res,file,type){try{const b=await fs.readFile(path.join(__dirname,'public',file));res.writeHead(200,{'content-type':type,'cache-control':'no-store, max-age=0'});res.end(b);}catch{return json(res,404,{error:'file not found'});}}
-const bannerPatch=`<style>img[data-railway-banner]{width:100%!important;height:auto!important;display:block!important;object-fit:cover!important}</style><script>(function(){const NEW='/resources/qa-team-top-banner.png?v=20260914-2002';let scheduled=false;function fix(){scheduled=false;const imgs=[...document.querySelectorAll('img')];let c=imgs.filter(i=>{const r=i.getBoundingClientRect();return r.top<750&&(r.width>700||i.naturalWidth>1200)});c.sort((a,b)=>(b.getBoundingClientRect().width*b.getBoundingClientRect().height)-(a.getBoundingClientRect().width*a.getBoundingClientRect().height));const el=c[0];if(!el)return;if(el.getAttribute('data-railway-banner')!=='1')el.setAttribute('data-railway-banner','1');const wanted=new URL(NEW,location.href).href;if(el.src!==wanted)el.src=NEW;if(el.srcset)el.srcset='';}function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(fix)}new MutationObserver(schedule).observe(document.documentElement,{subtree:true,childList:true});addEventListener('DOMContentLoaded',schedule);addEventListener('load',schedule);setTimeout(schedule,100);setTimeout(schedule,700);})();</script><script src="/experiment-plan-patch.js?v=20260914-2002"></script>`;
+const bannerPatch=`<style>img[data-railway-banner]{width:100%!important;height:auto!important;display:block!important;object-fit:cover!important}</style><script>(function(){const NEW='/resources/qa-team-top-banner.png?v=20260914-2026';let scheduled=false;function fix(){scheduled=false;const imgs=[...document.querySelectorAll('img')];let c=imgs.filter(i=>{const r=i.getBoundingClientRect();return r.top<750&&(r.width>700||i.naturalWidth>1200)});c.sort((a,b)=>(b.getBoundingClientRect().width*b.getBoundingClientRect().height)-(a.getBoundingClientRect().width*a.getBoundingClientRect().height));const el=c[0];if(!el)return;if(el.getAttribute('data-railway-banner')!=='1')el.setAttribute('data-railway-banner','1');const wanted=new URL(NEW,location.href).href;if(el.src!==wanted)el.src=NEW;if(el.srcset)el.srcset='';}function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(fix)}new MutationObserver(schedule).observe(document.documentElement,{subtree:true,childList:true});addEventListener('DOMContentLoaded',schedule);addEventListener('load',schedule);setTimeout(schedule,100);setTimeout(schedule,700);})();</script><script src="/experiment-plan-patch.js?v=20260914-2026"></script>`;
 
 async function proxyStatic(req,res){
   const u=new URL(req.url,'http://local');
@@ -32,7 +34,7 @@ async function proxyStatic(req,res){
   if(!isText){const b=Buffer.from(await r.arrayBuffer());res.writeHead(200,{'content-type':type,'cache-control':'no-cache'});return res.end(b);}
   let text=await r.text();
   if(type.includes('text/html')){
-    text=text.replace(/(?:https:\/\/app-p7vcr6\.v2\.appdeploy\.ai\/)?resources\/qa-team-top-banner\.(?:png|jpg|jpeg|webp)(?:\?[^"']*)?/gi,'/resources/qa-team-top-banner.png?v=20260914-2002');
+    text=text.replace(/(?:https:\/\/app-p7vcr6\.v2\.appdeploy\.ai\/)?resources\/qa-team-top-banner\.(?:png|jpg|jpeg|webp)(?:\?[^"']*)?/gi,'/resources/qa-team-top-banner.png?v=20260914-2026');
     text=text.replace('</body>',bannerPatch+'</body>');
   }
   res.writeHead(200,{'content-type':type,'cache-control':'no-store'});res.end(text);
@@ -42,6 +44,19 @@ async function handleApi(req,res,u){
   const p=u.pathname,y=yearOf(u),method=req.method||'GET';
   if(p==='/health')return json(res,200,{ok:true,db:!!pool});
   if(p==='/api/admin/login'&&method==='POST')return json(res,200,{ok:true});
+  if(p==='/api/experiment-plan'){
+    const key=rowsKey('experimentPlan',y);
+    if(method==='GET')return json(res,200,{year:y,records:await get(key,{})});
+    if(method==='POST'){
+      const b=await readBody(req);
+      const id=String(b.id||'');
+      if(!/^\d+-\d{1,2}$/.test(id))return json(res,400,{error:'invalid id'});
+      const cur=await get(key,{});
+      cur[id]={...(cur[id]||{}),...b,id,updatedAt:new Date().toISOString()};
+      await set(key,cur);
+      return json(res,200,{ok:true,record:cur[id]});
+    }
+  }
   if(p==='/api/years')return json(res,200,{years:await get('years',[2026])});
   if(p==='/api/data')return json(res,200,{rows:await get(rowsKey('returns',y),[])});
   if(p==='/api/processing')return json(res,200,{year:y,monthly:await get(rowsKey('processing',y),Array(12).fill(0))});
