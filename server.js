@@ -20,12 +20,14 @@ const rowsKey=(name,y)=>`${name}:${y}`;
 await init();
 
 async function sendLocal(res,file,type){try{const b=await fs.readFile(path.join(__dirname,'public',file));res.writeHead(200,{'content-type':type,'cache-control':'no-store, no-cache, must-revalidate, max-age=0','pragma':'no-cache','expires':'0'});res.end(b);}catch{return json(res,404,{error:'file not found'});}}
-const bannerPatch=`<style>img[data-railway-banner]{width:100%!important;height:auto!important;display:block!important;object-fit:cover!important}</style><script>(function(){if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}const NEW='/resources/qa-team-top-banner.png?v=20260914-2130';let scheduled=false;function fix(){scheduled=false;const imgs=[...document.querySelectorAll('img')];let c=imgs.filter(i=>{const r=i.getBoundingClientRect();return r.top<750&&(r.width>700||i.naturalWidth>1200)});c.sort((a,b)=>(b.getBoundingClientRect().width*b.getBoundingClientRect().height)-(a.getBoundingClientRect().width*a.getBoundingClientRect().height));const el=c[0];if(!el)return;if(el.getAttribute('data-railway-banner')!=='1')el.setAttribute('data-railway-banner','1');const wanted=new URL(NEW,location.href).href;if(el.src!==wanted)el.src=NEW;if(el.srcset)el.srcset='';}function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(fix)}new MutationObserver(schedule).observe(document.documentElement,{subtree:true,childList:true});addEventListener('DOMContentLoaded',schedule);addEventListener('load',schedule);setTimeout(schedule,100);setTimeout(schedule,700);})();</script><script src="/experiment-plan-patch.js?v=20260914-2130"></script>`;
+const bannerPatch=`<style>img[data-railway-banner]{width:100%!important;height:auto!important;display:block!important;object-fit:cover!important}</style><script>(function(){if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}const NEW='/resources/qa-team-top-banner.png?v=20260915-0436';let scheduled=false;function fix(){scheduled=false;const imgs=[...document.querySelectorAll('img')];let c=imgs.filter(i=>{const r=i.getBoundingClientRect();return r.top<750&&(r.width>700||i.naturalWidth>1200)});c.sort((a,b)=>(b.getBoundingClientRect().width*b.getBoundingClientRect().height)-(a.getBoundingClientRect().width*a.getBoundingClientRect().height));const el=c[0];if(!el)return;if(el.getAttribute('data-railway-banner')!=='1')el.setAttribute('data-railway-banner','1');const wanted=new URL(NEW,location.href).href;if(el.src!==wanted)el.src=NEW;if(el.srcset)el.srcset='';}function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(fix)}new MutationObserver(schedule).observe(document.documentElement,{subtree:true,childList:true});addEventListener('DOMContentLoaded',schedule);addEventListener('load',schedule);setTimeout(schedule,100);setTimeout(schedule,700);})();</script><script src="/experiment-plan-patch.js?v=20260915-0436"></script>`;
+const yearHeadPatch=`<script src="/year-scope-patch.js?v=20260915-0436"></script>`;
 
 async function proxyStatic(req,res){
   const u=new URL(req.url,'http://local');
   if(u.pathname==='/resources/qa-team-top-banner.jpg'||u.pathname==='/resources/qa-team-top-banner.png'||u.pathname==='/qa-team-top-banner.png')return sendLocal(res,'resources/qa-team-top-banner.png','image/png');
   if(u.pathname==='/experiment-plan-patch.js')return sendLocal(res,'experiment-plan-patch.js','application/javascript; charset=utf-8');
+  if(u.pathname==='/year-scope-patch.js')return sendLocal(res,'year-scope-patch.js','application/javascript; charset=utf-8');
   const target=SOURCE+(u.pathname==='/'?'/':u.pathname)+u.search;
   const r=await fetch(target,{redirect:'follow'});
   if(!r.ok)return json(res,r.status,{error:'not found'});
@@ -34,7 +36,8 @@ async function proxyStatic(req,res){
   if(!isText){const b=Buffer.from(await r.arrayBuffer());res.writeHead(200,{'content-type':type,'cache-control':'no-cache'});return res.end(b);}
   let text=await r.text();
   if(type.includes('text/html')){
-    text=text.replace(/(?:https:\/\/app-p7vcr6\.v2\.appdeploy\.ai\/)?resources\/qa-team-top-banner\.(?:png|jpg|jpeg|webp)(?:\?[^"']*)?/gi,'/resources/qa-team-top-banner.png?v=20260914-2130');
+    text=text.replace(/(?:https:\/\/app-p7vcr6\.v2\.appdeploy\.ai\/)?resources\/qa-team-top-banner\.(?:png|jpg|jpeg|webp)(?:\?[^"']*)?/gi,'/resources/qa-team-top-banner.png?v=20260915-0436');
+    text=text.replace(/<head(\s[^>]*)?>/i,m=>m+yearHeadPatch);
     text=text.replace('</body>',bannerPatch+'</body>');
   }
   res.writeHead(200,{'content-type':type,'cache-control':'no-store, no-cache, must-revalidate, max-age=0','pragma':'no-cache','expires':'0'});res.end(text);
@@ -57,7 +60,7 @@ async function handleApi(req,res,u){
       return json(res,200,{ok:true,record:cur[id]});
     }
   }
-  if(p==='/api/years')return json(res,200,{years:await get('years',[2026])});
+  if(p==='/api/years')return json(res,200,{years:await get('years',[2025,2026])});
   if(p==='/api/data')return json(res,200,{rows:await get(rowsKey('returns',y),[])});
   if(p==='/api/processing')return json(res,200,{year:y,monthly:await get(rowsKey('processing',y),Array(12).fill(0))});
   if(p==='/api/production'){const m=Number(u.searchParams.get('month')),a=await get(rowsKey('production',y),[]);return json(res,200,{year:y,month:m,rows:a.find(x=>Number(x.month)===m)?.rows||[]});}
