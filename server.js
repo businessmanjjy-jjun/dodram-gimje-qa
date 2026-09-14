@@ -18,7 +18,7 @@ const rowsKey=(name,y)=>`${name}:${y}`;
 await init();
 
 async function sendLocal(res,file,type){try{const b=await fs.readFile(path.join(__dirname,'public',file));res.writeHead(200,{'content-type':type,'cache-control':'no-store, max-age=0'});res.end(b);}catch{return json(res,404,{error:'file not found'});}}
-const bannerPatch=`<style>img[data-railway-banner]{width:100%!important;height:auto!important;display:block!important;object-fit:cover!important}</style><script>(function(){const NEW='/resources/qa-team-top-banner.png?v=20260914-1817';function fix(){const imgs=[...document.querySelectorAll('img')];let c=imgs.filter(i=>{const r=i.getBoundingClientRect();return r.top<750&&(r.width>700||i.naturalWidth>1200)});c.sort((a,b)=>(b.getBoundingClientRect().width*b.getBoundingClientRect().height)-(a.getBoundingClientRect().width*a.getBoundingClientRect().height));if(c[0]){c[0].setAttribute('data-railway-banner','1');c[0].src=NEW;c[0].srcset='';}}new MutationObserver(fix).observe(document.documentElement,{subtree:true,childList:true,attributes:true});addEventListener('DOMContentLoaded',fix);addEventListener('load',fix);setTimeout(fix,100);setTimeout(fix,700);})();</script><script src="/experiment-plan-patch.js?v=20260914-1932"></script>`;
+const bannerPatch=`<style>img[data-railway-banner]{width:100%!important;height:auto!important;display:block!important;object-fit:cover!important}</style><script>(function(){const NEW='/resources/qa-team-top-banner.png?v=20260914-1950';let scheduled=false;function fix(){scheduled=false;const imgs=[...document.querySelectorAll('img')];let c=imgs.filter(i=>{const r=i.getBoundingClientRect();return r.top<750&&(r.width>700||i.naturalWidth>1200)});c.sort((a,b)=>(b.getBoundingClientRect().width*b.getBoundingClientRect().height)-(a.getBoundingClientRect().width*a.getBoundingClientRect().height));const el=c[0];if(!el)return;if(el.getAttribute('data-railway-banner')!=='1')el.setAttribute('data-railway-banner','1');const wanted=new URL(NEW,location.href).href;if(el.src!==wanted)el.src=NEW;if(el.srcset)el.srcset='';}function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(fix)}new MutationObserver(schedule).observe(document.documentElement,{subtree:true,childList:true});addEventListener('DOMContentLoaded',schedule);addEventListener('load',schedule);setTimeout(schedule,100);setTimeout(schedule,700);})();</script><script src="/experiment-plan-patch.js?v=20260914-1950"></script>`;
 
 async function proxyStatic(req,res){
   const u=new URL(req.url,'http://local');
@@ -32,7 +32,7 @@ async function proxyStatic(req,res){
   if(!isText){const b=Buffer.from(await r.arrayBuffer());res.writeHead(200,{'content-type':type,'cache-control':'no-cache'});return res.end(b);}
   let text=await r.text();
   if(type.includes('text/html')){
-    text=text.replace(/(?:https:\/\/app-p7vcr6\.v2\.appdeploy\.ai\/)?resources\/qa-team-top-banner\.(?:png|jpg|jpeg|webp)(?:\?[^"']*)?/gi,'/resources/qa-team-top-banner.png?v=20260914-1817');
+    text=text.replace(/(?:https:\/\/app-p7vcr6\.v2\.appdeploy\.ai\/)?resources\/qa-team-top-banner\.(?:png|jpg|jpeg|webp)(?:\?[^"']*)?/gi,'/resources/qa-team-top-banner.png?v=20260914-1950');
     text=text.replace('</body>',bannerPatch+'</body>');
   }
   res.writeHead(200,{'content-type':type,'cache-control':'no-store'});res.end(text);
